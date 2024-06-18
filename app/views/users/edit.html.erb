@@ -1,14 +1,13 @@
 <h1>Edit Profile</h1>
-
-<%= form_for(@user) do |f| %>
+<%= form_for(@user, url: user_path(@user), method: :patch) do |f| %>
   <div class="field">
     <%= f.label :name %><br>
-    <%= f.text_field :name %>
+    <%= f.text_field :name, value: @seatable_data['name'] %>
   </div>
 
   <div class="field">
     <%= f.label :email %><br>
-    <%= f.email_field :email %>
+    <%= f.email_field :email, value: @seatable_data['email'] %>
   </div>
 
   <div class="field">
@@ -30,3 +29,4 @@
     <%= f.submit 'Update' %>
   </div>
 <% end %>
+<%= link_to 'Back', @user %>
