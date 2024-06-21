@@ -1,21 +1,20 @@
+require 'uri'
+require 'net/http'
+
 class UsersController < ApplicationController
-  before_action :authenticate_user!
-  before_action :set_user, only: [:show, :edit, :update]
-  before_action :fetch_seatable_data, only: [:edit, :update]
+  before_action :set_user, only: %i[show edit update]
+  before_action :fetch_seatable_data, only: %i[edit update]
 
-  def show
-  end
-
-  def edit
-  end
+  def edit; end
 
   def update
-    if @user.update(user_params)
-      update_seatable_data
-      redirect_to @user, notice: 'Profile updated successfully.'
+    if user_params[:password].present?
+      update_user_with_password
     else
-      render :edit
+      update_user_without_password
     end
+  rescue StandardError => e
+    handle_update_error(e)
   end
 
   private
@@ -29,46 +28,106 @@ class UsersController < ApplicationController
   end
 
   def fetch_seatable_data
-    url = URI("#{session[:seatable_metadata]['dtable_db']}dtable-server/api/v1/dtables/#{session[:seatable_metadata]['dtable_uuid']}/rows/")
-    url.query = URI.encode_www_form({
-      table_name: 'Table1',
-      email: @user.email
-    })
+    return unless session[:seatable_access_token]
 
-    http = Net::HTTP.new(url.host, url.port)
-    http.use_ssl = true
+    url = URI("https://cloud.seatable.io/api-gateway/api/v2/dtables/#{session[:seatable_metadata]['dtable_uuid']}/sql")
+    request = create_seatable_request(url, seatable_sql_query)
 
-    request = Net::HTTP::Get.new(url)
-    request["authorization"] = "Token #{session[:seatable_access_token]}"
+    response = perform_request(request)
+    handle_seatable_response(response)
+  end
 
-    response = http.request(request)
-    if response.code == '200'
-      @seatable_data = JSON.parse(response.read_body)["rows"].first
+  def update_user_with_password
+    if @user.update_with_password(user_params)
+      update_seatable_data if params[:seatable_data]
+      redirect_to @user, notice: 'Profile updated successfully.'
     else
-      Rails.logger.error "Failed to fetch Seatable data: #{response.body}"
+      render :edit
+    end
+  end
+
+  def update_user_without_password
+    if @user.update_without_password(user_params.except(:current_password, :password, :password_confirmation))
+      update_seatable_data if params[:seatable_data]
+      redirect_to @user, notice: 'Profile updated successfully.'
+    else
+      render :edit
     end
   end
 
   def update_seatable_data
-    url = URI("#{session[:seatable_metadata]['dtable_db']}dtable-server/api/v1/dtables/#{session[:seatable_metadata]['dtable_uuid']}/rows/")
+    seatable_data = params[:seatable_data].to_unsafe_h
+    seatable_data['E-Mail'] = params[:user][:email] if params[:user][:email].present?
 
-    http = Net::HTTP.new(url.host, url.port)
-    http.use_ssl = true
+    raise "Seatable data email is missing" unless seatable_data['E-Mail']
 
-    request = Net::HTTP::Put.new(url)
-    request["authorization"] = "Token #{session[:seatable_access_token]}"
-    request["Content-Type"] = "application/json"
-    request.body = {
-      row_id: @seatable_data['id'],
-      updates: {
-        name: @user.name,
-        email: @user.email
-      }
-    }.to_json
+    changed_fields = JSON.parse(params[:changed_fields]) rescue []
 
-    response = http.request(request)
-    if response.code != '200'
-      Rails.logger.error "Failed to update Seatable data: #{response.body}"
+    if changed_fields.empty?
+      return
     end
+
+    column_mapping = {
+      "seatable_data[name]" => "Name",
+      "seatable_data[vorname]" => "Vorname",
+      "seatable_data[telefon]" => "Telefon",
+      "seatable_data[art_der_behinderung]" => "Art der Behinderung",
+      "seatable_data[arbeitszeit]" => "Arbeitszeit",
+      "seatable_data[ortsbinding]" => "Ortsbindung",
+      "seatable_data[grad_der_behinderung]" => "Grad der Behinderung",
+      "seatable_data[berufsbezeichnung]" => "Berufsbezeichnung",
+      "seatable_data[sprachkenntnisse]" => "Sprachkenntnisse"
+    }
+
+    mapped_changed_data = changed_fields.each_with_object({}) do |field, hash|
+      key = field.match(/\[([^\]]+)\]/)[1] # Extract key inside brackets
+      hash[column_mapping[field]] = seatable_data[key] if seatable_data[key].present?
+    end
+
+    set_clause = mapped_changed_data.map { |key, value| "`#{key}` = '#{value}'" }.join(", ")
+    sql_query = "UPDATE Talente SET #{set_clause} WHERE `E-Mail` = '#{seatable_data['E-Mail']}';"
+    puts ("SQL Query: #{sql_query}")
+
+    url = URI("https://cloud.seatable.io/api-gateway/api/v2/dtables/#{session[:seatable_metadata]['dtable_uuid']}/sql")
+    request = create_seatable_request(url, sql_query)
+
+    response = perform_request(request)
+    handle_update_response(response)
+  end
+
+  def handle_update_error(error)
+    render :edit, alert: 'Update failed. Please try again.'
+  end
+
+  def create_seatable_request(url, sql_query)
+    Net::HTTP::Post.new(url).tap do |request|
+      request["accept"] = 'application/json'
+      request["content-type"] = 'application/json'
+      request["authorization"] = "Bearer #{session[:seatable_access_token]}"
+      request.body = { convert_keys: true, sql: sql_query }.to_json
+    end
+  end
+
+  def perform_request(request)
+    http = Net::HTTP.new(request.uri.host, request.uri.port)
+    http.use_ssl = true
+    http.request(request)
+  end
+
+  def handle_seatable_response(response)
+    if response.code == '200'
+      rows = JSON.parse(response.body)["results"]
+      @seatable_data = rows.first if rows && !rows.empty?
+    end
+  end
+
+  def handle_update_response(response)
+    if response.code != '200'
+      raise "Failed to update Seatable data: #{response.body}"
+    end
+  end
+
+  def seatable_sql_query
+    "SELECT * FROM Talente WHERE `E-Mail` = '#{current_user.email}';"
   end
 end

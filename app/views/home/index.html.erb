@@ -2,37 +2,7 @@
 
 <% if user_signed_in? %>
   <h2>Edit Profile</h2>
-  <%= form_for(@user, url: user_path(@user), method: :patch) do |f| %>
-    <div class="field">
-      <%= f.label :name %><br>
-      <%= f.text_field :name %>
-    </div>
-
-    <div class="field">
-      <%= f.label :email %><br>
-      <%= f.email_field :email %>
-    </div>
-
-    <div class="field">
-      <%= f.label :password %> (leave blank if you don't want to change it)<br>
-      <%= f.password_field :password %>
-    </div>
-
-    <div class="field">
-      <%= f.label :password_confirmation %><br>
-      <%= f.password_field :password_confirmation %>
-    </div>
-
-    <div class="field">
-      <%= f.label :current_password %> (required for updates)<br>
-      <%= f.password_field :current_password %>
-    </div>
-
-    <div class="actions">
-      <%= f.submit 'Update' %>
-    </div>
-  <% end %>
-
+  <%= render 'users/form', user: @user %>
   <%= link_to 'Logout', logout_path, class: 'button' %>
 <% else %>
   <h2>Login</h2>

@@ -1,0 +1,75 @@
+<%= form_for(@user, url: user_path(@user), method: :patch) do |f| %>
+  <div class="field">
+    <%= f.label :name %><br>
+    <%= f.text_field :name %>
+  </div>
+
+  <div class="field">
+    <%= f.label :email %><br>
+    <%= f.email_field :email, value: @user.email %>
+  </div>
+
+  <div class="field">
+    <%= f.label :password %> (leave blank if you don't want to change it)<br>
+    <%= f.password_field :password %>
+  </div>
+
+  <div class="field">
+    <%= f.label :password_confirmation %><br>
+    <%= f.password_field :password_confirmation %>
+  </div>
+
+  <div class="field">
+    <%= f.label :current_password %> (required for password updates)<br>
+    <%= f.password_field :current_password %>
+  </div>
+
+  <h3>Seatable Data</h3>
+
+  <%= hidden_field_tag 'seatable_data[_id]', @seatable_data['_id'] %>
+
+  <% seatable_fields = {
+    'name' => 'Name',
+    'vorname' => 'Vorname',
+    'telefon' => 'Telefon',
+    'art_der_behinderung' => 'Art der Behinderung',
+    'arbeitszeit' => 'Arbeitszeit',
+    'ortsbinding' => 'Ortsbindung',
+    'grad_der_behinderung' => 'Grad der Behinderung',
+    'berufsbezeichnung' => 'Berufsbezeichnung',
+    'sprachkenntnisse' => 'Sprachkenntnisse'
+  } %>
+
+  <% seatable_fields.each do |field, label| %>
+    <div class="field">
+      <%= label_tag "seatable_data[#{field}]", label %><br>
+      <%= text_field_tag "seatable_data[#{field}]", @seatable_data[label] %>
+    </div>
+  <% end %>
+
+  <div class="actions">
+    <%= f.submit 'Update' %>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.querySelector('form');
+      const changedFields = new Set();
+
+      form.addEventListener('change', (event) => {
+        const target = event.target;
+        if (target.name) {
+          changedFields.add(target.name);
+        }
+      });
+
+      form.addEventListener('submit', () => {
+        const changedDataInput = document.createElement('input');
+        changedDataInput.type = 'hidden';
+        changedDataInput.name = 'changed_fields';
+        changedDataInput.value = JSON.stringify(Array.from(changedFields));
+        form.appendChild(changedDataInput);
+      });
+    });
+  </script>
+<% end %>
