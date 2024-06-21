@@ -28,7 +28,7 @@ class UsersController < ApplicationController
   end
 
   def fetch_seatable_data
-    return unless session[:seatable_access_token]
+    return unless user_signed_in? && session[:seatable_access_token]
 
     url = URI("https://cloud.seatable.io/api-gateway/api/v2/dtables/#{session[:seatable_metadata]['dtable_uuid']}/sql")
     request = create_seatable_request(url, seatable_sql_query)

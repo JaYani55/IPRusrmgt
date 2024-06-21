@@ -1,9 +1,11 @@
-require 'uri'
-require 'net/http'
-
 class HomeController < ApplicationController
   def index
-    fetch_seatable_data
+    if user_signed_in?
+      @user = current_user
+      fetch_seatable_data
+    else
+      @user = User.new
+    end
   end
 
   private
