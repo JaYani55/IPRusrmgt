@@ -59,6 +59,11 @@ class UsersController < ApplicationController
     seatable_data = params[:seatable_data].to_unsafe_h
     seatable_data['E-Mail'] = params[:user][:email] if params[:user][:email].present?
 
+    # Handle multi-select field for 'Arbeitsbereich'
+    if seatable_data['arbeitsbereich'].is_a?(Array)
+      seatable_data['arbeitsbereich'] = seatable_data['arbeitsbereich'].join(', ')
+    end
+
     raise "Seatable data email is missing" unless seatable_data['E-Mail']
 
     changed_fields = JSON.parse(params[:changed_fields]) rescue []
@@ -68,20 +73,21 @@ class UsersController < ApplicationController
     end
 
     column_mapping = {
-      "seatable_data[name]" => "Name",
-      "seatable_data[vorname]" => "Vorname",
-      "seatable_data[telefon]" => "Telefon",
-      "seatable_data[art_der_behinderung]" => "Art der Behinderung",
-      "seatable_data[arbeitszeit]" => "Arbeitszeit",
-      "seatable_data[ortsbinding]" => "Ortsbindung",
-      "seatable_data[grad_der_behinderung]" => "Grad der Behinderung",
-      "seatable_data[berufsbezeichnung]" => "Berufsbezeichnung",
-      "seatable_data[sprachkenntnisse]" => "Sprachkenntnisse"
+      "name" => "Name",
+      "vorname" => "Vorname",
+      "telefon" => "Telefon",
+      "art_der_behinderung" => "Art der Behinderung",
+      "arbeitszeit" => "Arbeitszeit",
+      "ortsbinding" => "Ortsbindung",
+      "grad_der_behinderung" => "Grad der Behinderung",
+      "berufsbezeichnung" => "Berufsbezeichnung",
+      "sprachkenntnisse" => "Sprachkenntnisse",
+      "arbeitsbereich" => "Arbeitsbereich" # Ensure this key is mapped correctly
     }
 
     mapped_changed_data = changed_fields.each_with_object({}) do |field, hash|
-      key = field.match(/\[([^\]]+)\]/)[1] # Extract key inside brackets
-      hash[column_mapping[field]] = seatable_data[key] if seatable_data[key].present?
+      key = field.split('[').last.split(']').first # Extract key inside brackets
+      hash[column_mapping[key]] = seatable_data[key] if seatable_data[key].present? && column_mapping[key]
     end
 
     set_clause = mapped_changed_data.map { |key, value| "`#{key}` = '#{value}'" }.join(", ")

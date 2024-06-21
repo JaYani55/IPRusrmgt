@@ -1,4 +1,4 @@
-<%= form_for(@user, url: user_path(@user), method: :patch) do |f| %>
+<%= form_for(@user, url: @user.persisted? ? user_path(@user) : user_session_path, method: @user.persisted? ? :patch : :post) do |f| %>
   <div class="field">
     <%= f.label :name %><br>
     <%= f.text_field :name %>
@@ -6,51 +6,62 @@
 
   <div class="field">
     <%= f.label :email %><br>
-    <%= f.email_field :email, value: @user.email %>
+    <%= f.email_field :email %>
   </div>
 
-  <div class="field">
-    <%= f.label :password %> (leave blank if you don't want to change it)<br>
-    <%= f.password_field :password %>
-  </div>
-
-  <div class="field">
-    <%= f.label :password_confirmation %><br>
-    <%= f.password_field :password_confirmation %>
-  </div>
-
-  <div class="field">
-    <%= f.label :current_password %> (required for password updates)<br>
-    <%= f.password_field :current_password %>
-  </div>
-
-  <h3>Seatable Data</h3>
-
-  <%= hidden_field_tag 'seatable_data[_id]', @seatable_data['_id'] %>
-
-  <% seatable_fields = {
-    'name' => 'Name',
-    'vorname' => 'Vorname',
-    'telefon' => 'Telefon',
-    'art_der_behinderung' => 'Art der Behinderung',
-    'arbeitszeit' => 'Arbeitszeit',
-    'ortsbinding' => 'Ortsbindung',
-    'grad_der_behinderung' => 'Grad der Behinderung',
-    'berufsbezeichnung' => 'Berufsbezeichnung',
-    'sprachkenntnisse' => 'Sprachkenntnisse'
-  } %>
-
-  <% seatable_fields.each do |field, label| %>
+  <% if @user.persisted? %>
     <div class="field">
-      <%= label_tag "seatable_data[#{field}]", label %><br>
-      <%= text_field_tag "seatable_data[#{field}]", @seatable_data[label] %>
+      <%= f.label :password %> (leave blank if you don't want to change it)<br>
+      <%= f.password_field :password %>
+    </div>
+
+    <div class="field">
+      <%= f.label :password_confirmation %><br>
+      <%= f.password_field :password_confirmation %>
+    </div>
+
+    <div class="field">
+      <%= f.label :current_password %> (required for password updates)<br>
+      <%= f.password_field :current_password %>
+    </div>
+
+    <h3>Seatable Data</h3>
+
+    <%= hidden_field_tag 'seatable_data[_id]', @seatable_data['_id'] %>
+
+    <% seatable_fields = {
+      'name' => 'Name',
+      'vorname' => 'Vorname',
+      'telefon' => 'Telefon',
+      'art_der_behinderung' => 'Art der Behinderung',
+      'arbeitszeit' => 'Arbeitszeit',
+      'ortsbinding' => 'Ortsbindung',
+      'grad_der_behinderung' => 'Grad der Behinderung',
+      'berufsbezeichnung' => 'Berufsbezeichnung',
+      'sprachkenntnisse' => 'Sprachkenntnisse'
+    } %>
+
+    <% seatable_fields.each do |field, label| %>
+      <div class="field">
+        <%= label_tag "seatable_data[#{field}]", label %><br>
+        <%= text_field_tag "seatable_data[#{field}]", @seatable_data[label] %>
+      </div>
+    <% end %>
+
+    <div class="field">
+      <%= label_tag 'seatable_data[arbeitsbereich]', 'Arbeitsbereich' %><br>
+      <select name="seatable_data[arbeitsbereich]" id="arbeitsbereich">
+        <option value="IT">IT</option>
+        <option value="Finance">Finance</option>
+        <option value="Marketing">Marketing</option>
+      </select>
     </div>
   <% end %>
 
   <div class="actions">
     <%= f.submit 'Update' %>
   </div>
-    # Script to track changes in the form fields for SQL update construction
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.querySelector('form');
